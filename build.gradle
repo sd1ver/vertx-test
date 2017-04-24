@@ -12,6 +12,12 @@ repositories {
   mavenCentral()
 }
 
+task runWithoutCluster(type: JavaExec){
+  classpath = sourceSets.main.runtimeClasspath
+  main = 'home.LauncherMain'
+  jvmArgs = ["-Drun.clustered=false", "-Xms256m"]
+}
+
 dependencies {
   compile group: 'io.vertx', name: 'vertx-core', version: '3.4.1'
   compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.8.2'

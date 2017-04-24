@@ -20,7 +20,7 @@ public class LauncherMain {
   private static final String LOCK2 = "lock2";
 
   public static void main(String[] args) throws InterruptedException {
-    final boolean clustered = true;
+    boolean clustered = System.getProperty("run.clustered", "true").equals("true");
     final Vertx vertx = createVertxSystem(clustered);
     final TestVerticle verticle = new TestVerticle();
     vertx.deployVerticle(verticle, new DeploymentOptions());
