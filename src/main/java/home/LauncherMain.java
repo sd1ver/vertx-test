@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 
 public class LauncherMain {
-
   private static final Logger logger = LoggerFactory.getLogger(LauncherMain.class);
 
   private static final String TEST_ADDRESS = "test.channel";
