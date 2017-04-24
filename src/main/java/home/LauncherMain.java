@@ -33,7 +33,7 @@ public class LauncherMain {
     });
 
     vertx.setPeriodic(TimeUnit.SECONDS.toMillis(5), i -> {
-      logger.info("Sent " + sendCount.longValue() + " messages, consumed with locks: " + verticle.getConsumedWithLocks());
+      logger.info("Sent " + sendCount.longValue() + " messages; consumed with locks: " + verticle.getConsumedWithLocks());
     });
   }
 
