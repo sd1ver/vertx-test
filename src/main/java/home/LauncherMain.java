@@ -1,9 +1,6 @@
 package home;
 
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
+import io.vertx.core.*;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.shareddata.Lock;
@@ -12,6 +9,7 @@ import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 
 
 public class LauncherMain {
@@ -24,26 +22,55 @@ public class LauncherMain {
   public static void main(String[] args) throws InterruptedException {
     final boolean clustered = true;
     final Vertx vertx = createVertxSystem(clustered);
-    vertx.deployVerticle(new TestVerticle(), new DeploymentOptions());
-    vertx.setPeriodic(1, i -> vertx.eventBus().send(TEST_ADDRESS, "msg"));
+    final TestVerticle verticle = new TestVerticle();
+    vertx.deployVerticle(verticle, new DeploymentOptions());
+
+    final LongAdder sendCount = new LongAdder();
+    logger.info("Start sending");
+    vertx.setPeriodic(1, i -> {
+      vertx.eventBus().send(TEST_ADDRESS, "msg");
+      sendCount.increment();
+    });
+
+    vertx.setPeriodic(TimeUnit.SECONDS.toMillis(5), i -> {
+      logger.info("Sent " + sendCount.longValue() + " messages, consumed with locks: " + verticle.getConsumedWithLocks());
+    });
   }
 
   private static final class TestVerticle extends AbstractVerticle {
+    private final LongAdder consumedWithLocks = new LongAdder();
+
     @Override
     public void start() throws Exception {
-      vertx.eventBus().consumer(TEST_ADDRESS, event -> vertx.sharedData().getLock(LOCK1, res -> {
-        if (res.succeeded()) {
-          final Lock lock1 = res.result();
-          vertx.sharedData().getLock(LOCK2, res2 -> {
-            if (res2.succeeded()) {
-              final Lock lock2 = res2.result();
-              logger.info("All locks catched");
-              lock2.release();
-            }
-            lock1.release();
-          });
+      vertx.eventBus().consumer(TEST_ADDRESS, event -> vertx.sharedData().getLock(LOCK1, result -> {
+        if (result.succeeded()) {
+          getSecondLock(result.result());
         }
       }));
+    }
+
+    private void getSecondLock(Lock lock) {
+      vertx.sharedData().getLock(LOCK2, result -> {
+        withSecondLock(result, this::workWithLocks);
+        lock.release();
+      });
+    }
+
+    private void withSecondLock(AsyncResult<Lock> result, Runnable with2Locks) {
+      if (result.succeeded()) {
+        final Lock lock = result.result();
+        with2Locks.run();
+        lock.release();
+      }
+    }
+
+    private void workWithLocks() {
+      logger.info("Consumed with all locks");
+      consumedWithLocks.increment();
+    }
+
+    private Long getConsumedWithLocks() {
+      return consumedWithLocks.longValue();
     }
   }
 
