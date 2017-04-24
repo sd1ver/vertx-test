@@ -22,8 +22,8 @@ public class LauncherMain {
   private static final String LOCK2 = "lock2";
 
   public static void main(String[] args) throws InterruptedException {
-    boolean clustered = true;
-    Vertx vertx = createVertxSystem(clustered);
+    final boolean clustered = true;
+    final Vertx vertx = createVertxSystem(clustered);
     vertx.deployVerticle(new TestVerticle(), new DeploymentOptions());
     vertx.setPeriodic(1, i -> vertx.eventBus().send(TEST_ADDRESS, "msg"));
   }
@@ -31,21 +31,19 @@ public class LauncherMain {
   private static final class TestVerticle extends AbstractVerticle {
     @Override
     public void start() throws Exception {
-      vertx.eventBus().consumer(TEST_ADDRESS, event -> {
-        vertx.sharedData().getLock(LOCK1, res -> {
-          if (res.succeeded()) {
-            Lock lock1 = res.result();
-            vertx.sharedData().getLock(LOCK2, res2 -> {
-              if (res2.succeeded()) {
-                Lock lock2 = res2.result();
-                logger.info("All locks catched");
-                lock2.release();
-              }
-              lock1.release();
-            });
-          }
-        });
-      });
+      vertx.eventBus().consumer(TEST_ADDRESS, event -> vertx.sharedData().getLock(LOCK1, res -> {
+        if (res.succeeded()) {
+          final Lock lock1 = res.result();
+          vertx.sharedData().getLock(LOCK2, res2 -> {
+            if (res2.succeeded()) {
+              final Lock lock2 = res2.result();
+              logger.info("All locks catched");
+              lock2.release();
+            }
+            lock1.release();
+          });
+        }
+      }));
     }
   }
 
@@ -66,7 +64,7 @@ public class LauncherMain {
   }
 
   private static void createClusteredSystem(CountDownLatch latch, AtomicReference<Vertx> vertexRef) {
-    VertxOptions options = new VertxOptions().setClusterManager(new HazelcastClusterManager());
+    final VertxOptions options = new VertxOptions().setClusterManager(new HazelcastClusterManager());
     Vertx.factory.clusteredVertx(options, res -> {
       if (!res.succeeded()) {
         throw new IllegalStateException("Can't create clustered vertx system", res.cause());
